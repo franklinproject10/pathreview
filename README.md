@@ -69,3 +69,7 @@ make run           # Start the dev servers
 ## License
 
 MIT
+
+
+
+<img width="1396" height="861" alt="image" src="https://github.com/user-attachments/assets/02d9fdd2-32e1-4f65-9ea5-9fb36b57520d" />
