@@ -13,7 +13,10 @@ from core.services.review_service import (
 )
 
 
-def make_db(first_return=None, all_return=None):
+def make_db(
+    first_return: object = None,
+    all_return: object = None,
+) -> AsyncMock:
     """
     Factory that builds a correctly-shaped async db mock.
     Only execute() is async — scalars/first/all are plain Mock.
@@ -23,7 +26,6 @@ def make_db(first_return=None, all_return=None):
     db.commit = AsyncMock()
     db.refresh = AsyncMock()
 
-    # Build the synchronous result chain
     mock_result = Mock()
     mock_result.scalars.return_value.first.return_value = first_return
     mock_result.scalars.return_value.all.return_value = all_return if all_return is not None else []
@@ -36,66 +38,66 @@ class TestCreateReview:
     """Tests for create_review()"""
 
     @pytest.mark.asyncio
-    async def test_returns_review_with_pending_status(self):
+    async def test_returns_review_with_pending_status(self) -> None:
         db = make_db()
         profile_id = uuid4()
         user_id = uuid4()
 
-        with patch("core.services.review_service.Review") as MockReview:
+        with patch("core.services.review_service.Review") as mock_review_class:
             mock_instance = Mock()
             mock_instance.status = "pending"
-            MockReview.return_value = mock_instance
+            mock_review_class.return_value = mock_instance
 
-            result = await create_review(db, profile_id, user_id)
+            await create_review(db, profile_id, user_id)
 
-            call_kwargs = MockReview.call_args[1]
+            call_kwargs = mock_review_class.call_args[1]
             assert call_kwargs["status"] == "pending"
 
     @pytest.mark.asyncio
-    async def test_sections_and_score_initially_none(self):
+    async def test_sections_and_score_initially_none(self) -> None:
         db = make_db()
         profile_id = uuid4()
         user_id = uuid4()
 
-        with patch("core.services.review_service.Review") as MockReview:
-            MockReview.return_value = Mock()
+        with patch("core.services.review_service.Review") as mock_review_class:
+            mock_review_class.return_value = Mock()
             await create_review(db, profile_id, user_id)
 
-            call_kwargs = MockReview.call_args[1]
+            call_kwargs = mock_review_class.call_args[1]
             assert call_kwargs["sections"] is None
             assert call_kwargs["overall_score"] is None
 
     @pytest.mark.asyncio
-    async def test_calls_db_add(self):
+    async def test_calls_db_add(self) -> None:
         db = make_db()
         with patch("core.services.review_service.Review"):
             await create_review(db, uuid4(), uuid4())
             db.add.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_calls_db_commit(self):
+    async def test_calls_db_commit(self) -> None:
         db = make_db()
         with patch("core.services.review_service.Review"):
             await create_review(db, uuid4(), uuid4())
             db.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_calls_db_refresh(self):
+    async def test_calls_db_refresh(self) -> None:
         db = make_db()
         with patch("core.services.review_service.Review"):
             await create_review(db, uuid4(), uuid4())
             db.refresh.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_profile_id_passed_to_review(self):
+    async def test_profile_id_passed_to_review(self) -> None:
         db = make_db()
         profile_id = uuid4()
 
-        with patch("core.services.review_service.Review") as MockReview:
-            MockReview.return_value = Mock()
+        with patch("core.services.review_service.Review") as mock_review_class:
+            mock_review_class.return_value = Mock()
             await create_review(db, profile_id, uuid4())
 
-            call_kwargs = MockReview.call_args[1]
+            call_kwargs = mock_review_class.call_args[1]
             assert call_kwargs["profile_id"] == profile_id
 
 
@@ -104,7 +106,7 @@ class TestGetReview:
     """Tests for get_review()"""
 
     @pytest.mark.asyncio
-    async def test_returns_review_for_correct_owner(self):
+    async def test_returns_review_for_correct_owner(self) -> None:
         mock_review = Mock()
         db = make_db(first_return=mock_review)
 
@@ -112,22 +114,21 @@ class TestGetReview:
         assert result == mock_review
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_not_found(self):
+    async def test_returns_none_when_not_found(self) -> None:
         db = make_db(first_return=None)
 
         result = await get_review(db, uuid4(), uuid4())
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_calls_db_execute(self):
+    async def test_calls_db_execute(self) -> None:
         db = make_db(first_return=None)
 
         await get_review(db, uuid4(), uuid4())
         db.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_returns_none_for_wrong_user(self):
-        """When DB returns None (ownership check failed), result is None."""
+    async def test_returns_none_for_wrong_user(self) -> None:
         db = make_db(first_return=None)
 
         result = await get_review(db, uuid4(), uuid4())
@@ -139,21 +140,21 @@ class TestListReviews:
     """Tests for list_reviews()"""
 
     @pytest.mark.asyncio
-    async def test_returns_tuple(self):
+    async def test_returns_tuple(self) -> None:
         db = make_db(all_return=[])
         result = await list_reviews(db, uuid4())
         assert isinstance(result, tuple)
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_returns_list_and_int(self):
+    async def test_returns_list_and_int(self) -> None:
         db = make_db(all_return=[])
         reviews, total = await list_reviews(db, uuid4())
         assert isinstance(reviews, list)
         assert isinstance(total, int)
 
     @pytest.mark.asyncio
-    async def test_total_reflects_all_results(self):
+    async def test_total_reflects_all_results(self) -> None:
         mock_reviews = [Mock() for _ in range(5)]
         db = make_db(all_return=mock_reviews)
 
@@ -161,26 +162,26 @@ class TestListReviews:
         assert total == 5
 
     @pytest.mark.asyncio
-    async def test_empty_results(self):
+    async def test_empty_results(self) -> None:
         db = make_db(all_return=[])
         reviews, total = await list_reviews(db, uuid4())
         assert reviews == []
         assert total == 0
 
     @pytest.mark.asyncio
-    async def test_default_pagination_calls_execute(self):
+    async def test_default_pagination_calls_execute(self) -> None:
         db = make_db(all_return=[])
         await list_reviews(db, uuid4())
-        assert db.execute.call_count == 2  # count query + paginated query
+        assert db.execute.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_custom_page_size(self):
+    async def test_custom_page_size(self) -> None:
         db = make_db(all_return=[])
         reviews, total = await list_reviews(db, uuid4(), page=1, page_size=50)
         assert isinstance(reviews, list)
 
     @pytest.mark.asyncio
-    async def test_page_2_calls_execute(self):
+    async def test_page_2_calls_execute(self) -> None:
         db = make_db(all_return=[])
         await list_reviews(db, uuid4(), page=2, page_size=20)
         assert db.execute.call_count == 2
@@ -188,21 +189,17 @@ class TestListReviews:
 
 @pytest.mark.unit
 class TestProcessReview:
-    """Tests for process_review() — the main pipeline function."""
+    """Tests for process_review() - the main pipeline function."""
 
     @pytest.mark.asyncio
-    async def test_sets_status_failed_when_review_not_found(self):
-        """If review doesn't exist, log error and return early."""
+    async def test_sets_status_failed_when_review_not_found(self) -> None:
         db = make_db(first_return=None)
 
-        # Should return without raising
         await process_review(db, uuid4(), uuid4())
-        # execute was called to look up the review
         db.execute.assert_called()
 
     @pytest.mark.asyncio
-    async def test_sets_status_failed_when_profile_not_found(self):
-        """If profile doesn't exist, set review status to failed."""
+    async def test_sets_status_failed_when_profile_not_found(self) -> None:
         mock_review = Mock()
         mock_review.status = "pending"
 
@@ -210,8 +207,6 @@ class TestProcessReview:
         db.add = Mock()
         db.commit = AsyncMock()
 
-        # First execute (review lookup) returns review
-        # Second execute (profile lookup) returns None
         mock_result_with_review = Mock()
         mock_result_with_review.scalars.return_value.first.return_value = mock_review
 
@@ -221,12 +216,10 @@ class TestProcessReview:
         db.execute = AsyncMock(side_effect=[mock_result_with_review, mock_result_no_profile])
 
         await process_review(db, uuid4(), uuid4())
-
         assert mock_review.status == "failed"
 
     @pytest.mark.asyncio
-    async def test_sets_status_processing_during_run(self):
-        """Review status should be set to processing before pipeline runs."""
+    async def test_sets_status_complete_on_success(self) -> None:
         mock_review = Mock()
         mock_review.status = "pending"
         mock_profile = Mock()
@@ -250,7 +243,6 @@ class TestProcessReview:
             patch("core.services.review_service._run_rag_retrieval_generation") as mock_rag,
             patch("core.services.review_service._run_safety_checks") as mock_safety,
         ):
-
             mock_agent.return_value = {"sections": [], "overall_score": 0.8}
             mock_rag.return_value = {
                 "sections": [
@@ -270,8 +262,7 @@ class TestProcessReview:
         assert mock_review.status == "complete"
 
     @pytest.mark.asyncio
-    async def test_sets_status_failed_when_safety_checks_fail(self):
-        """If safety checks fail, review status should be failed."""
+    async def test_sets_status_failed_when_safety_checks_fail(self) -> None:
         mock_review = Mock()
         mock_review.status = "pending"
         mock_profile = Mock()
@@ -295,18 +286,16 @@ class TestProcessReview:
             patch("core.services.review_service._run_rag_retrieval_generation") as mock_rag,
             patch("core.services.review_service._run_safety_checks") as mock_safety,
         ):
-
             mock_agent.return_value = {"sections": [], "overall_score": 0.0}
             mock_rag.return_value = {"sections": [], "overall_score": 0.0}
-            mock_safety.return_value = False  # safety fails
+            mock_safety.return_value = False
 
             await process_review(db, uuid4(), uuid4())
 
         assert mock_review.status == "failed"
 
     @pytest.mark.asyncio
-    async def test_exception_sets_status_failed(self):
-        """Unhandled exception in pipeline should set status to failed."""
+    async def test_exception_sets_status_failed(self) -> None:
         mock_review = Mock()
         mock_review.status = "pending"
 
